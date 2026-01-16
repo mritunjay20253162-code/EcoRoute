@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>EcoRoute: OpenLayers Edition</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.3.0/ol.css" type="text/css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="fab-container">
+        <button class="fab" onclick="toggleDarkMode()"><i class="fas fa-moon"></i></button>
+        <button class="fab" id="btn3d" onclick="toggle3DMode()"><i class="fas fa-cube"></i></button>
+        <button class="fab" onclick="zoomIn()"><i class="fas fa-plus"></i></button>
+        <button class="fab" onclick="zoomOut()"><i class="fas fa-minus"></i></button>
+    </div>
+
+    <div class="weather-widget">
+        <div><span class="weather-val" id="temp-val">--°</span><span class="weather-lbl">Temp</span></div>
+        <div class="divider"></div>
+        <div><span class="weather-val" id="aqi-val">--</span><span class="weather-lbl">AQI</span></div>
+    </div>
+
+    <div class="nav-stats" id="nav-hud">
+        <div style="text-align: center;"><span class="stat-val" id="dist-rem">0 km</span><span style="font-size:9px">Remaining</span></div>
+        <div class="divider" style="background: #ffffff30;"></div>
+        <div style="text-align: center;"><span class="stat-val" id="time-rem">0 min</span><span style="font-size:9px">ETA</span></div>
+    </div>
+
+    <div class="turn-box" id="turn-hud">
+        <i class="fas fa-arrow-up turn-icon" id="turn-arrow"></i>
+        <span style="font-weight:600" id="turn-msg">Calculating...</span>
+    </div>
+
+    <div id="landing-overlay">
+        <div class="search-card">
+            <h1 style="color:#2c3e50; margin-bottom:15px">🌱 EcoRoute OL</h1>
+            <select id="country-input">
+                <option value="India" selected>India</option>
+                <option value="USA">USA</option>
+            </select>
+            <input type="text" id="source-input" placeholder="Your Location" value="Your Location">
+            <input type="text" id="dest-input" placeholder="Your Destination" value="Your Destination">
+            <button class="btn-go" onclick="initiateRoute()">Start Journey 🚀</button>
+        </div>
+    </div>
+
+    <button id="back-btn" onclick="location.reload()"><i class="fas fa-times"></i> End Trip</button>
+
+    <div id="map-container">
+        <div id="map"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
+    
+    <script src="script.js"></script>
+
+</body>
+</html>
