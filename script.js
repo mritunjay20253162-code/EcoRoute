@@ -1,18 +1,17 @@
-// --- 1. SETUP MAP (OpenLayers) ---
-const defaultCenter = ol.proj.fromLonLat([78.9629, 20.5937]); // India Center
 
+const defaultCenter = ol.proj.fromLonLat([78.9629, 20.5937]); 
 var map = new ol.Map({
     target: 'map',
     layers: [
         new ol.layer.Tile({
-            source: new ol.source.OSM() // OpenStreetMap Tiles
+            source: new ol.source.OSM() 
         })
     ],
     view: new ol.View({
         center: defaultCenter,
         zoom: 5
     }),
-    controls: [] // Empty to remove default zoom buttons
+    controls: [] 
 });
 
 // Layer for Route Lines and Markers
@@ -31,7 +30,7 @@ const vectorLayer = new ol.layer.Vector({
             return new ol.style.Style({
                 image: new ol.style.Icon({
                     anchor: [0.5, 1],
-                    scale: 0.08, // Adjust icon size
+                    scale: 0.08, 
                     src: feature.get('iconUrl') || 'https://cdn-icons-png.flaticon.com/512/684/684908.png'
                 })
             });
@@ -40,18 +39,13 @@ const vectorLayer = new ol.layer.Vector({
 });
 map.addLayer(vectorLayer);
 
-// --- 2. LOGIC VARIABLES ---
 let is3D = false;
 const WAQI_TOKEN = '14f75b5c2a7941f401e0cae7e48d9f21ffba9d6b';
 
-// --- 3. HELPER FUNCTIONS ---
-
-// Convert Lat/Lon to Map Projection
 function toMapCoords(lat, lon) {
     return ol.proj.fromLonLat([parseFloat(lon), parseFloat(lat)]);
 }
 
-// Add Marker Function
 function addMarker(lat, lon, iconUrl) {
     const marker = new ol.Feature({
         geometry: new ol.geom.Point(toMapCoords(lat, lon)),
@@ -68,8 +62,6 @@ inputs.forEach(id => {
     el.addEventListener('focus', () => { if(el.value.includes('Your')) el.value = ''; });
     el.addEventListener('blur', () => { if(el.value === '') el.value = el.getAttribute('placeholder'); });
 });
-
-// --- 4. CORE FEATURES ---
 
 async function getCoords(query) {
     try {
@@ -100,7 +92,7 @@ async function updateWeather(lat, lon) {
     } catch(e) {}
 }
 
-// --- 5. ROUTING LOGIC (Using OSRM API manually) ---
+//ROUTING LOGIC (Using OSRM API manually)
 async function initiateRoute() {
     const country = document.getElementById('country-input').value;
     let srcTxt = document.getElementById('source-input').value;
@@ -109,27 +101,27 @@ async function initiateRoute() {
 
     btn.innerText = "Routing...";
     
-    // 1. Get Coordinates
+    //Geting Coordinates
     let start = await getCoords(`${srcTxt}, ${country}`);
     let end = await getCoords(`${dstTxt}, ${country}`);
 
     if(!start || !end) { alert("Location not found"); btn.innerText = "Start Journey 🚀"; return; }
 
-    // 2. UI Updates
+    //UI Updates
     document.getElementById('landing-overlay').style.transform = "translateY(-120%)";
     document.getElementById('back-btn').style.display = "flex";
     document.getElementById('nav-hud').style.display = "flex";
     document.getElementById('turn-hud').style.display = "flex";
 
-    // 3. Clear old layers
+    //Clear old layers
     vectorSource.clear();
 
-    // 4. Add Start/End Markers
+    //Add Start/End Markers
     addMarker(start.lat, start.lon, 'https://cdn-icons-png.flaticon.com/512/3253/3253110.png'); // Start Dot
     addMarker(end.lat, end.lon, 'https://cdn-icons-png.flaticon.com/512/684/684908.png'); // End Flag
 
-    // 5. Fetch Route from OSRM
-    // OSRM expects coordinates as "lon,lat"
+    //Fetch Route from OSRM
+    //OSRM expects coordinates as "lon,lat"
     const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${start.lon},${start.lat};${end.lon},${end.lat}?overview=full&geometries=geojson&steps=true`;
 
     try {
@@ -139,11 +131,11 @@ async function initiateRoute() {
         if(data.routes && data.routes.length > 0) {
             const route = data.routes[0];
             
-            // Update Stats
+            // Updating Stats
             document.getElementById('dist-rem').innerText = (route.distance / 1000).toFixed(1) + " km";
             document.getElementById('time-rem').innerText = Math.round(route.duration / 60) + " min";
             
-            // Draw Route Line
+            //Drawing Route Line
             const routeFeature = new ol.format.GeoJSON().readFeature(route.geometry, {
                 dataProjection: 'EPSG:4326',
                 featureProjection: 'EPSG:3857'
@@ -151,19 +143,19 @@ async function initiateRoute() {
             routeFeature.set('type', 'route');
             vectorSource.addFeature(routeFeature);
 
-            // Fit map to route
+            // Fiting map to route
             map.getView().fit(vectorSource.getExtent(), { padding: [100, 100, 100, 100], duration: 1000 });
 
-            // Update Weather
+            // Updating Weather
             updateWeather(start.lat, start.lon);
 
-            // Show Turn Instruction (First step)
+            // Showing Turn Instruction (First step)
             if(route.legs[0].steps.length > 0) {
                 const step = route.legs[0].steps[0];
                 document.getElementById('turn-msg').innerText = step.maneuver.type + " " + (step.name || "ahead");
             }
 
-            // Auto switch to 3D
+            // Auto switching to 3D
             if(!is3D) toggle3DMode();
         }
 
@@ -174,7 +166,7 @@ async function initiateRoute() {
     btn.innerText = "Start Journey 🚀";
 }
 
-// --- 6. CONTROLS ---
+//CONTROLS
 function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
 
 function toggle3DMode() {
@@ -199,4 +191,112 @@ function zoomIn() {
 function zoomOut() { 
     const view = map.getView();
     view.animate({zoom: view.getZoom() - 1, duration: 250});
+}
+
+
+//NEAREST SEARCH FUNCTION 
+
+async function searchNearby(type) {
+    const view = map.getView();
+    
+    // Screen ki boundary (Extent) nikalenge taaki hum sirf dikh rahe area mein search karein
+    const extent = view.calculateExtent(map.getSize());
+    
+    // Coordinates ko convert karenge 
+    const bottomLeft = ol.proj.toLonLat(ol.extent.getBottomLeft(extent));
+    const topRight = ol.proj.toLonLat(ol.extent.getTopRight(extent));
+
+    const viewbox = `${bottomLeft[0]},${topRight[1]},${topRight[0]},${bottomLeft[1]}`;
+
+    console.log("Searching nearby:", type);
+
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${type}&limit=5&viewbox=${viewbox}&bounded=1`;
+
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if(data.length === 0) { 
+            alert("Is area mein koi " + type + " nahi mila. Map thoda move karein."); 
+            return; 
+        }
+
+        //setting icons
+        let iconUrl = 'https://cdn-icons-png.flaticon.com/512/684/684908.png'; // Default
+        if(type === 'hotel') iconUrl = 'https://cdn-icons-png.flaticon.com/512/3009/3009489.png';
+        if(type === 'restaurant') iconUrl = 'https://cdn-icons-png.flaticon.com/512/1046/1046784.png';
+
+        //adding markers to map
+        data.forEach(item => {
+            addMarker(item.lat, item.lon, iconUrl);
+        });
+
+    } catch(e) {
+        console.error("Search Error:", e);
+        alert("Search failed. Internet check karein.");
+    }
+}
+
+// countries list 
+const countryList = [
+    "India", "USA", "United Kingdom", "Canada", "Australia", "Germany", "France", 
+    "Japan", "China", "Brazil", "Russia", "South Africa", "Italy", "Spain", 
+    "Netherlands", "Switzerland", "Sweden", "New Zealand", "Singapore", "UAE",
+    "Saudi Arabia", "Mexico", "Argentina", "Chile", "Colombia", "Egypt", "Turkey",
+    "Thailand", "Vietnam", "Malaysia", "Indonesia", "Philippines", "South Korea",
+    "Pakistan", "Bangladesh", "Sri Lanka", "Nepal", "Afghanistan", "Iran", "Iraq",
+    "Israel", "Portugal", "Belgium", "Austria", "Norway", "Denmark", "Finland",
+    "Ireland", "Poland", "Ukraine", "Greece", "Hungary", "Czech Republic"
+];
+
+window.addEventListener('load', () => {
+    const dataList = document.getElementById('country-list');
+    
+    dataList.innerHTML = '';
+
+    countryList.forEach(country => {
+        const option = document.createElement('option');
+        option.value = country;
+        dataList.appendChild(option);
+    });
+});
+
+
+//WELCOME SCREEN LOGIC
+
+function enterApp() {
+    const welcomeScreen = document.getElementById('welcome-screen');
+    welcomeScreen.style.opacity = '0'; // Fade out effect
+    
+    const mainApp = document.getElementById('main-app');
+    mainApp.style.display = 'block';
+
+    setTimeout(() => {
+        welcomeScreen.style.display = 'none'; 
+        
+        map.updateSize(); 
+        
+    }, 500); // 0.5 second wait for fading
+}
+
+
+//WELCOME SCREEN LOGIC
+
+function enterApp() {
+    const welcomeScreen = document.getElementById('welcome-screen');
+    const mainApp = document.getElementById('main-app');
+
+    mainApp.style.display = 'block';
+
+    map.updateSize();
+
+    setTimeout(() => {
+        welcomeScreen.classList.add('slide-up-exit');
+        
+        mainApp.classList.add('app-enter-active');
+    }, 50);
+
+    setTimeout(() => {
+        welcomeScreen.style.display = 'none';
+    }, 800); 
 }

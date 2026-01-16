@@ -11,10 +11,35 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div id="welcome-screen">
+        <div class="welcome-content">
+            <h1 class="logo-title">🌱 EcoRoute</h1>
+            <p class="tagline">Find the cleanest path.</p>
+            
+            <div class="info-text">
+                <p>
+                    A smart app that helps you adopt sustainable transportation habits 
+                    by providing eco-friendly route planning and tracking your carbon footprint.
+                    <br><br>
+                    <strong>Choose greener travel options today!</strong>
+                </p>
+            </div>
+
+            <div class="mockup-visual">
+                <i class="fas fa-map-location-dot" style="font-size: 80px; color: #2ecc71; opacity: 0.8;"></i>
+            </div>
+
+            <button class="btn-next" onclick="enterApp()">Next <i class="fas fa-arrow-right"></i></button>
+        </div>
+    </div>
+    <div id="main-app" style="display: none;">
 
     <div class="fab-container">
         <button class="fab" onclick="toggleDarkMode()"><i class="fas fa-moon"></i></button>
         <button class="fab" id="btn3d" onclick="toggle3DMode()"><i class="fas fa-cube"></i></button>
+
+        <button class="fab" onclick="searchNearby('restaurant')" title="Nearest Restaurant"><i class="fas fa-utensils"></i></button>
+        <button class="fab" onclick="searchNearby('hotel')" title="Nearest Hotels"><i class="fas fa-bed"></i></button>
         <button class="fab" onclick="zoomIn()"><i class="fas fa-plus"></i></button>
         <button class="fab" onclick="zoomOut()"><i class="fas fa-minus"></i></button>
     </div>
@@ -38,11 +63,10 @@
 
     <div id="landing-overlay">
         <div class="search-card">
-            <h1 style="color:#2c3e50; margin-bottom:15px">🌱 EcoRoute OL</h1>
-            <select id="country-input">
-                <option value="India" selected>India</option>
-                <option value="USA">USA</option>
-            </select>
+            <h1 style="color:#2c3e50; margin-bottom:15px">🌱 EcoRoute</h1>
+            <input list="country-list" id="country-input" placeholder="Type Country Name (e.g. India)">
+            <datalist id="country-list">
+            </datalist>
             <input type="text" id="source-input" placeholder="Your Location" value="Your Location">
             <input type="text" id="dest-input" placeholder="Your Destination" value="Your Destination">
             <button class="btn-go" onclick="initiateRoute()">Start Journey 🚀</button>
