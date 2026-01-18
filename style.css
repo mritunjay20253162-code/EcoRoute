@@ -171,3 +171,110 @@ input, select {
     transform: scale(1) !important;
 }
 
+/* --- 11. ERROR MODAL STYLES --- */
+
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.6); /* Peeche ka background dhundhla karega */
+    z-index: 10000 !important; /* Sabse upar dikhna chahiye */
+    display: none; /* Shuru mein chupa rahega */
+    align-items: center; justify-content: center;
+    backdrop-filter: blur(5px);
+}
+
+.modal-box {
+    background: white; width: 85%; max-width: 320px;
+    padding: 30px; border-radius: 20px; text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.modal-icon {
+    font-size: 50px; color: #e74c3c; margin-bottom: 15px;
+}
+
+.modal-box h3 { margin: 0 0 10px 0; color: #2c3e50; }
+.modal-box p { color: #666; font-size: 14px; margin-bottom: 25px; line-height: 1.5; }
+
+.btn-close-modal {
+    background: #2c3e50; color: white; border: none;
+    padding: 12px 30px; border-radius: 50px; font-weight: bold;
+    cursor: pointer; transition: 0.2s;
+}
+
+.btn-close-modal:hover { background: #e74c3c; transform: scale(1.05); }
+
+/* Pop Animation */
+@keyframes popIn {
+    from { transform: scale(0.5); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+/* --- 12. UNIQUE BUTTON STYLES --- */
+
+.fab-container {
+    gap: 10px; /* Thoda gap badhaya */
+}
+
+.separator {
+    height: 2px; background: rgba(0,0,0,0.1); margin: 5px 10px; border-radius: 2px;
+}
+
+.fab {
+    width: 45px; height: 45px; border-radius: 14px; border: none;
+    background: white; color: #555;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    cursor: pointer; font-size: 18px;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy effect */
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+}
+
+/* Hover Effect: Button thoda bada hoga aur glow karega */
+.fab:hover {
+    transform: scale(1.15) translateX(-5px); /* Left ki taraf pop hoga */
+    z-index: 10;
+}
+
+/* --- Color Coding for Specific Buttons --- */
+
+/* Food: Orange */
+.btn-food:hover { background: #ff9f43; color: white; box-shadow: 0 8px 15px rgba(255, 159, 67, 0.4); }
+
+/* Hotel: Indigo */
+.btn-hotel:hover { background: #5f27cd; color: white; box-shadow: 0 8px 15px rgba(95, 39, 205, 0.4); }
+
+/* Hospital: Red */
+.btn-hospital:hover { background: #ff4757; color: white; box-shadow: 0 8px 15px rgba(255, 71, 87, 0.4); }
+
+/* Fuel: Gold/Yellow */
+.btn-fuel:hover { background: #ffa502; color: white; box-shadow: 0 8px 15px rgba(255, 165, 2, 0.4); }
+
+/* Mall: Pink/Purple */
+.btn-mall:hover { background: #ff6b81; color: white; box-shadow: 0 8px 15px rgba(255, 107, 129, 0.4); }
+
+/* Active State (Click hone par) */
+.fab:active { transform: scale(0.95); }
+
+
+/* --- SATELLITE BUTTON HOVER EFFECT --- */
+#btnSat:hover {
+    background: #0984e3; /* Sky Blue Color */
+    color: white;
+    box-shadow: 0 8px 15px rgba(9, 132, 227, 0.4); /* Blue Glow */
+    transform: scale(1.15) rotate(15deg); /* Thoda sa ghumega bhi (Cool effect) */
+}
+
+/* --- 13. ACTIVE BUTTON STATES (Toggle Logic) --- */
+
+/* Jab button 'active' class ke saath ho, toh uska color wahi rahe jo hover par tha */
+
+.btn-food.active { background: #ff9f43 !important; color: white; box-shadow: inset 0 3px 8px rgba(0,0,0,0.2); }
+
+.btn-hotel.active { background: #5f27cd !important; color: white; box-shadow: inset 0 3px 8px rgba(0,0,0,0.2); }
+
+.btn-hospital.active { background: #ff4757 !important; color: white; box-shadow: inset 0 3px 8px rgba(0,0,0,0.2); }
+
+.btn-fuel.active { background: #ffa502 !important; color: white; box-shadow: inset 0 3px 8px rgba(0,0,0,0.2); }
+
+.btn-mall.active { background: #ff6b81 !important; color: white; box-shadow: inset 0 3px 8px rgba(0,0,0,0.2); }

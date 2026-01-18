@@ -35,13 +35,36 @@
     <div id="main-app" style="display: none;">
 
     <div class="fab-container">
-        <button class="fab" onclick="toggleDarkMode()"><i class="fas fa-moon"></i></button>
-        <button class="fab" id="btn3d" onclick="toggle3DMode()"><i class="fas fa-cube"></i></button>
+    <button class="fab" onclick="toggleDarkMode()" title="Dark Mode"><i class="fas fa-moon"></i></button>
+    <button class="fab" id="btn3d" onclick="toggle3DMode()" title="3D View"><i class="fas fa-cube"></i></button>
+    <button class="fab" id="btnSat" onclick="toggleSatellite()" title="Satellite View">
+    <i class="fas fa-satellite"></i>
+</button>
+    
+    <div class="separator"></div> <button class="fab btn-food" onclick="searchNearby('restaurant')" title="Restaurants">
+        <i class="fas fa-utensils"></i>
+    </button>
+    
+    <button class="fab btn-hotel" onclick="searchNearby('hotel')" title="Hotels">
+        <i class="fas fa-bed"></i>
+    </button>
+    
+    <button class="fab btn-hospital" onclick="searchNearby('hospital')" title="Hospitals">
+        <i class="fas fa-heart-pulse"></i>
+    </button>
+    
+    <button class="fab btn-fuel" onclick="searchNearby('gas_station')" title="Fuel Stations">
+        <i class="fas fa-gas-pump"></i>
+    </button>
+    
+    <button class="fab btn-mall" onclick="searchNearby('shopping_mall')" title="Shopping Malls">
+        <i class="fas fa-bag-shopping"></i>
+    </button>
 
-        <button class="fab" onclick="searchNearby('restaurant')" title="Nearest Restaurant"><i class="fas fa-utensils"></i></button>
-        <button class="fab" onclick="searchNearby('hotel')" title="Nearest Hotels"><i class="fas fa-bed"></i></button>
-        <button class="fab" onclick="zoomIn()"><i class="fas fa-plus"></i></button>
-        <button class="fab" onclick="zoomOut()"><i class="fas fa-minus"></i></button>
+    <div class="separator"></div>
+
+    <button class="fab" onclick="zoomIn()"><i class="fas fa-plus"></i></button>
+    <button class="fab" onclick="zoomOut()"><i class="fas fa-minus"></i></button>
     </div>
 
     <div class="weather-widget">
@@ -62,6 +85,7 @@
     </div>
 
     <div id="landing-overlay">
+ 
         <div class="search-card">
             <h1 style="color:#2c3e50; margin-bottom:15px">🌱 EcoRoute</h1>
             <input list="country-list" id="country-input" placeholder="Type Country Name (e.g. India)">
@@ -78,6 +102,16 @@
     <div id="map-container">
         <div id="map"></div>
     </div>
+    </div><div id="error-modal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-icon">
+            <i class="fas fa-exclamation-circle"></i>
+        </div>
+        <h3>Details Missing!</h3>
+        <p>Please enter your <b>Country</b>, <b>Location</b>, and <b>Destination</b> to start the journey.</p>
+        <button class="btn-close-modal" onclick="closeErrorModal()">OK, Got it</button>
+    </div>
+</div>
 
     <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
     
