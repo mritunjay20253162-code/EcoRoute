@@ -1,18 +1,22 @@
 // --- 1. GLOBAL VARIABLES ---
-let nearbyFeatures = []; // Track markers to remove them later
+let markersByCategory = {}; // Correct Object structure
 let is3D = false;
+let isCompassMode = false;
+let geolocation = null;
+let positionFeature = new ol.Feature(); 
+
 const WAQI_TOKEN = '14f75b5c2a7941f401e0cae7e48d9f21ffba9d6b';
 
-// --- 2. SETUP MAP (Satellite & Street) ---
+// --- 2. SETUP MAP ---
 const defaultCenter = ol.proj.fromLonLat([78.9629, 20.5937]);
 
-// Street Layer (Normal Map)
+// Street Layer
 const streetLayer = new ol.layer.Tile({
     source: new ol.source.OSM(),
     visible: true 
 });
 
-// Satellite Layer (Real Imagery)
+// Satellite Layer
 const satelliteLayer = new ol.layer.Tile({
     source: new ol.source.XYZ({
         url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -22,7 +26,7 @@ const satelliteLayer = new ol.layer.Tile({
     visible: false 
 });
 
-// Map Initialization
+// Map Init
 var map = new ol.Map({
     target: 'map',
     layers: [satelliteLayer, streetLayer],
@@ -33,23 +37,30 @@ var map = new ol.Map({
     controls: []
 });
 
-// --- 3. LAYERS & MARKERS ---
+// --- 3. LAYERS & STYLES ---
 const vectorSource = new ol.source.Vector();
 const vectorLayer = new ol.layer.Vector({
     source: vectorSource,
     style: function (feature) {
         const type = feature.get('type');
         if (type === 'route') {
-            return new ol.style.Style({
-                stroke: new ol.style.Stroke({ width: 6, color: '#4285F4' })
-            });
+            return new ol.style.Style({ stroke: new ol.style.Stroke({ width: 6, color: '#4285F4' }) });
         }
         if (type === 'icon') {
             return new ol.style.Style({
                 image: new ol.style.Icon({
                     anchor: [0.5, 1],
                     scale: 0.08, 
-                    src: feature.get('iconUrl') || 'https://cdn-icons-png.flaticon.com/512/684/684908.png'
+                    src: feature.get('iconUrl')
+                })
+            });
+        }
+        if (type === 'geoMarker') {
+            return new ol.style.Style({
+                image: new ol.style.Circle({
+                    radius: 8,
+                    fill: new ol.style.Fill({ color: '#3399CC' }),
+                    stroke: new ol.style.Stroke({ color: '#fff', width: 3 })
                 })
             });
         }
@@ -57,7 +68,7 @@ const vectorLayer = new ol.layer.Vector({
 });
 map.addLayer(vectorLayer);
 
-// Helper Functions
+// --- 4. HELPER FUNCTIONS ---
 function toMapCoords(lat, lon) {
     return ol.proj.fromLonLat([parseFloat(lon), parseFloat(lat)]);
 }
@@ -71,7 +82,7 @@ function addMarker(lat, lon, iconUrl) {
     vectorSource.addFeature(marker);
 }
 
-// Input handling
+// Input Handling
 const inputs = ['source-input', 'dest-input'];
 inputs.forEach(id => {
     const el = document.getElementById(id);
@@ -79,7 +90,90 @@ inputs.forEach(id => {
     el.addEventListener('blur', () => { if(el.value === '') el.value = el.getAttribute('placeholder'); });
 });
 
-// --- 4. API FUNCTIONS (Weather, Coords, Route) ---
+// --- 5. LOCATION & COMPASS LOGIC (Fixed) ---
+
+function askLocationPermission() {
+    document.getElementById('location-modal').style.display = 'flex';
+}
+
+function denyLocation() {
+    document.getElementById('location-modal').style.display = 'none';
+}
+
+function allowLocation() {
+    document.getElementById('location-modal').style.display = 'none';
+    startTracking();
+}
+
+function startTracking() {
+    if(geolocation) return; // Already tracking
+
+    geolocation = new ol.Geolocation({
+        trackingOptions: { enableHighAccuracy: true },
+        projection: map.getView().getProjection(),
+    });
+
+    geolocation.setTracking(true);
+    positionFeature.set('type', 'geoMarker'); 
+    vectorSource.addFeature(positionFeature);
+
+    // Position Change Logic
+    geolocation.on('change:position', function () {
+        const coordinates = geolocation.getPosition();
+        const heading = geolocation.getHeading() || 0;
+        
+        positionFeature.setGeometry(coordinates ? new ol.geom.Point(coordinates) : null);
+
+        // Compass Mode Logic
+        if (isCompassMode && coordinates) {
+            const view = map.getView();
+            view.setCenter(coordinates);
+            if (heading) {
+                view.setRotation(-heading);
+                const btnIcon = document.querySelector('#btnCompass i');
+                if(btnIcon) btnIcon.style.transform = `rotate(${heading}rad)`;
+            }
+        }
+    });
+
+    geolocation.on('error', function (error) {
+        alert("Location access denied or unavailable.");
+    });
+}
+
+function toggleCompassMode() {
+    const btn = document.getElementById('btnCompass');
+    const view = map.getView();
+
+    // 1. Agar tracking shuru nahi hui hai, to permission mango
+    if (!geolocation || !geolocation.getTracking()) {
+        askLocationPermission();
+        return;
+    }
+
+    // 2. Toggle Mode
+    isCompassMode = !isCompassMode;
+
+    if (isCompassMode) {
+        btn.classList.add('active');
+        
+        // Turant Re-center karo
+        const pos = geolocation.getPosition();
+        if(pos) {
+            view.animate({ center: pos, duration: 500, zoom: 16 }); // Thoda Zoom bhi karega
+        } else {
+            alert("Waiting for GPS signal..."); // Agar location abhi fetch nahi hui
+        }
+
+    } else {
+        btn.classList.remove('active');
+        view.animate({ rotation: 0, duration: 500 });
+        const btnIcon = document.querySelector('#btnCompass i');
+        if(btnIcon) btnIcon.style.transform = 'rotate(0deg)';
+    }
+}
+
+// --- 6. ROUTING & API FUNCTIONS ---
 
 async function getCoords(query) {
     try {
@@ -91,12 +185,10 @@ async function getCoords(query) {
 
 async function updateWeather(lat, lon) {
     try {
-        // Weather
         const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
         const wData = await wRes.json();
         document.getElementById('temp-val').innerText = Math.round(wData.current_weather.temperature) + "°C";
         
-        // AQI
         if(WAQI_TOKEN) {
             const aRes = await fetch(`https://api.waqi.info/feed/geo:${lat};${lon}/?token=${WAQI_TOKEN}`);
             const aData = await aRes.json();
@@ -116,19 +208,23 @@ async function initiateRoute() {
     let dstTxt = document.getElementById('dest-input').value;
     const btn = document.querySelector('.btn-go');
 
-    // Validation
     if (srcTxt.trim() === "" || dstTxt.trim() === "" || srcTxt === "Your Location" || dstTxt === "Your Destination" || country.trim() === "") {
-        showCustomModal("Details Missing", "Please enter <b>Country</b>, <b>Location</b>, and <b>Destination</b> to start.");
+        showCustomModal("Details Missing", "Please enter <b>Country</b>, <b>Location</b>, and <b>Destination</b>.");
         return; 
     }
 
     btn.innerText = "Routing...";
     
+    // Clear old data
+    vectorSource.clear();
+    markersByCategory = {}; 
+    document.querySelectorAll('.fab').forEach(b => b.classList.remove('active'));
+
     let start = await getCoords(`${srcTxt}, ${country}`);
     let end = await getCoords(`${dstTxt}, ${country}`);
 
     if(!start || !end) { 
-        showCustomModal("Location Error", "Could not find one of the locations. Please check spelling.");
+        showCustomModal("Location Error", "Could not find location. Please check spelling.");
         btn.innerText = "Start Journey 🚀"; 
         return; 
     }
@@ -139,12 +235,9 @@ async function initiateRoute() {
     document.getElementById('nav-hud').style.display = "flex";
     document.getElementById('turn-hud').style.display = "flex";
 
-    // Clear & Markers
-    vectorSource.clear();
     addMarker(start.lat, start.lon, 'https://cdn-icons-png.flaticon.com/512/3253/3253110.png'); 
     addMarker(end.lat, end.lon, 'https://cdn-icons-png.flaticon.com/512/684/684908.png'); 
 
-    // OSRM Routing
     const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${start.lon},${start.lat};${end.lon},${end.lat}?overview=full&geometries=geojson&steps=true`;
 
     try {
@@ -173,15 +266,18 @@ async function initiateRoute() {
             }
 
             if(!is3D) toggle3DMode();
+
+            // Ask for Location after 1 second
+            setTimeout(() => { askLocationPermission(); }, 1000);
         }
     } catch(e) {
-        showCustomModal("Routing Error", "Could not calculate route. Server might be busy.");
+        showCustomModal("Routing Error", "Could not calculate route.");
         console.error(e);
     }
     btn.innerText = "Start Journey 🚀";
 }
 
-// --- 5. SEARCH & TOGGLE LOGIC ---
+// --- 7. SEARCH & TOGGLE FUNCTIONS ---
 
 function toggleSatellite() {
     const btn = document.getElementById('btnSat');
@@ -203,7 +299,6 @@ function toggleSatellite() {
 }
 
 async function searchNearby(type) {
-    // 1. Button Selection
     let btnClass = '';
     if(type === 'restaurant') btnClass = '.btn-food';
     else if(type === 'hotel') btnClass = '.btn-hotel';
@@ -213,20 +308,15 @@ async function searchNearby(type) {
 
     const btn = document.querySelector(btnClass);
 
-    // 2. TOGGLE LOGIC
+    if (!markersByCategory[type]) markersByCategory[type] = [];
+
     if (btn.classList.contains('active')) {
-        nearbyFeatures.forEach(f => vectorSource.removeFeature(f));
-        nearbyFeatures = [];
+        markersByCategory[type].forEach(f => vectorSource.removeFeature(f));
+        markersByCategory[type] = [];
         btn.classList.remove('active');
         return;
     }
 
-    // Reset others
-    document.querySelectorAll('.fab').forEach(b => b.classList.remove('active'));
-    nearbyFeatures.forEach(f => vectorSource.removeFeature(f));
-    nearbyFeatures = [];
-
-    // 3. SEARCH LOGIC
     const view = map.getView();
     const extent = view.calculateExtent(map.getSize());
     const bottomLeft = ol.proj.toLonLat(ol.extent.getBottomLeft(extent));
@@ -244,13 +334,11 @@ async function searchNearby(type) {
         btn.style.opacity = "1";
 
         if(data.length === 0) { 
-            // Yahan showCustomModal call ho raha hai, jo niche defined hai
-            showCustomModal("No Results Found", `Sorry! No <b>${type.replace('_', ' ')}</b> found nearby.<br>Try zooming out or moving the map.`);
+            showCustomModal("No Results Found", `Sorry! No <b>${type.replace('_', ' ')}</b> found nearby.`);
             return; 
         }
 
         btn.classList.add('active');
-
         let iconUrl = 'https://cdn-icons-png.flaticon.com/512/684/684908.png'; 
         if(type === 'restaurant') iconUrl = 'https://cdn-icons-png.flaticon.com/512/1046/1046784.png';
         if(type === 'hotel') iconUrl = 'https://cdn-icons-png.flaticon.com/512/3009/3009489.png';
@@ -265,22 +353,20 @@ async function searchNearby(type) {
                 iconUrl: iconUrl
             });
             vectorSource.addFeature(marker);
-            nearbyFeatures.push(marker);
+            markersByCategory[type].push(marker);
         });
 
     } catch(e) {
-        console.error(e);
         btn.style.opacity = "1";
-        showCustomModal("Error", "Something went wrong. Check internet.");
+        showCustomModal("Error", "Check internet connection.");
     }
 }
 
-// --- 6. UI HELPERS (Modals, Country List, Transitions) ---
+// --- 8. UI, MODALS & END TRIP ---
 
-// THIS WAS MISSING IN YOUR CODE! 👇
 function showCustomModal(title, message) {
     const modal = document.getElementById('error-modal');
-    if (!modal) { alert(message); return; } // Safety fallback
+    if (!modal) { alert(message); return; }
 
     const h3 = modal.querySelector('h3');
     const p = modal.querySelector('p');
@@ -307,10 +393,33 @@ function closeErrorModal() {
     if(modal) modal.style.display = 'none';
 }
 
+function openRatingModal() {
+    document.getElementById('rating-modal').style.display = 'flex';
+}
+
+function rateStar(n) {
+    for (let i = 1; i <= 5; i++) {
+        const star = document.getElementById(`star-${i}`);
+        if (i <= n) {
+            star.classList.add('active'); star.classList.remove('far'); star.classList.add('fas');
+        } else {
+            star.classList.remove('active');
+        }
+    }
+}
+
+function showThankYouScreen() {
+    document.getElementById('rating-modal').style.display = 'none';
+    document.getElementById('thank-you-screen').style.display = 'flex';
+}
+
+function resetAppFull() {
+    location.reload();
+}
+
 function enterApp() {
     const welcomeScreen = document.getElementById('welcome-screen');
     const mainApp = document.getElementById('main-app');
-
     mainApp.style.display = 'block';
     map.updateSize();
 
@@ -390,3 +499,53 @@ window.addEventListener('load', () => {
         });
     }
 });
+
+// --- 14. DYNAMIC BACKGROUND SLIDESHOW (No Blink / Preloaded) ---
+
+// 1. Sirf Image Links (Bina 'url()' ke)
+const imageUrls = [
+    "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=2560&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?q=80&w=2070&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=2070&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?q=80&w=2070&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=2070&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2070&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1483921020237-2ff51e8e4b22?q=80&w=2070&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1495954484750-af469f2f9be5?q=80&w=2070&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?q=80&w=2070&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=2089&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=2070&auto=format&fit=crop"
+];
+
+// 2. IMAGE PRELOADER (Ye Blink hone se rokega)
+// Ye loop chup-chaap saari photos download kar lega
+imageUrls.forEach((url) => {
+    const img = new Image();
+    img.src = url;
+});
+
+// 3. Random Start
+let bgIndex = Math.floor(Math.random() * imageUrls.length);
+
+// Page load par pehli image set karo
+const overlay = document.getElementById('landing-overlay');
+if(overlay) {
+    overlay.style.backgroundImage = `url("${imageUrls[bgIndex]}")`;
+}
+
+// 4. Background Changer Function
+function changeBackground() {
+    const overlay = document.getElementById('landing-overlay');
+    
+    // Check karo ki overlay visible hai ya nahi
+    if (overlay && overlay.style.display !== 'none' && !overlay.classList.contains('slide-up-exit')) {
+        bgIndex = (bgIndex + 1) % imageUrls.length; // Next Index
+        
+        // Image Update
+        overlay.style.backgroundImage = `url("${imageUrls[bgIndex]}")`;
+    }
+}
+
+// Har 5 second mein change karo
+setInterval(changeBackground, 5000);

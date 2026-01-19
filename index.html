@@ -97,11 +97,14 @@
         </div>
     </div>
 
-    <button id="back-btn" onclick="location.reload()"><i class="fas fa-times"></i> End Trip</button>
+    <button id="back-btn" onclick="openRatingModal()"><i class="fas fa-times"></i> End Trip</button>
 
     <div id="map-container">
         <div id="map"></div>
     </div>
+    <button id="btnCompass" class="compass-btn" onclick="toggleCompassMode()" title="Re-center & Orient">
+    <i class="fas fa-location-arrow"></i>
+</button>
     </div><div id="error-modal" class="modal-overlay">
     <div class="modal-box">
         <div class="modal-icon">
@@ -112,6 +115,59 @@
         <button class="btn-close-modal" onclick="closeErrorModal()">OK, Got it</button>
     </div>
 </div>
+<div id="location-modal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-icon" style="color: #3498db;">
+            <i class="fas fa-location-arrow"></i>
+        </div>
+        <h3>Enable Live Location?</h3>
+        <p>Allow EcoRoute to track your position for real-time navigation updates.</p>
+        
+        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+            <button class="btn-cancel" onclick="denyLocation()">Don't Allow</button>
+            <button class="btn-allow" onclick="allowLocation()">Allow Access</button>
+        </div>
+    </div>
+</div>
+<div id="rating-modal" class="modal-overlay">
+        <div class="modal-box" style="position: relative;">
+            <button class="close-btn-left" onclick="showThankYouScreen()" title="Skip">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <div class="modal-icon" style="color: #f1c40f;">
+                <i class="fas fa-star"></i>
+            </div>
+            <h3>Rate Your Journey</h3>
+            <p>How was your eco-friendly trip experience?</p>
+            
+            <div class="star-rating">
+                <i class="fas fa-star" onclick="rateStar(1)" id="star-1"></i>
+                <i class="fas fa-star" onclick="rateStar(2)" id="star-2"></i>
+                <i class="fas fa-star" onclick="rateStar(3)" id="star-3"></i>
+                <i class="fas fa-star" onclick="rateStar(4)" id="star-4"></i>
+                <i class="fas fa-star" onclick="rateStar(5)" id="star-5"></i>
+            </div>
+
+            <button class="btn-submit-rating" onclick="showThankYouScreen()">Submit & Finish</button>
+        </div>
+    </div>
+
+    <div id="thank-you-screen" style="display: none;">
+        <div class="welcome-content">
+            <div class="mockup-visual">
+                <i class="fas fa-check-circle" style="font-size: 80px; color: #2ecc71;"></i>
+            </div>
+            <h1 class="logo-title" style="font-size: 2.5rem;">Thank You!</h1>
+            <p class="tagline">You just saved carbon emissions!</p>
+            
+            <div class="info-text">
+                <p>Your contribution to a greener planet is appreciated. Keep choosing eco-friendly routes!</p>
+            </div>
+
+            <button class="btn-next" onclick="resetAppFull()">Plan New Journey <i class="fas fa-redo"></i></button>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
     
