@@ -1,4 +1,5 @@
 // --- 1. GLOBAL VARIABLES ---
+let currentUserCoords = null;
 let markersByCategory = {}; // Correct Object structure
 let is3D = false;
 let isCompassMode = false;
@@ -119,10 +120,25 @@ function startTracking() {
 
     // Position Change Logic
     geolocation.on('change:position', function () {
-        const coordinates = geolocation.getPosition();
+        const coordinates = geolocation.getPosition(); // Returns Web Mercator [x, y]
         const heading = geolocation.getHeading() || 0;
         
         positionFeature.setGeometry(coordinates ? new ol.geom.Point(coordinates) : null);
+
+        // 👇 NEW LOGIC: Input Field Auto-Fill 👇
+        if (coordinates) {
+            // Save coordinates for Routing logic later
+            currentUserCoords = coordinates; 
+
+            // Input box update karo (Sirf agar wo khali hai ya default hai)
+            const srcInput = document.getElementById('source-input');
+            if (srcInput.value === 'Your Location' || srcInput.value === '') {
+                srcInput.value = "My Current Location";
+                srcInput.style.color = "#2ecc71"; // Green Text
+                srcInput.style.fontWeight = "bold";
+            }
+        }
+        // 👆 NEW LOGIC END 👆
 
         // Compass Mode Logic
         if (isCompassMode && coordinates) {
@@ -137,7 +153,8 @@ function startTracking() {
     });
 
     geolocation.on('error', function (error) {
-        alert("Location access denied or unavailable.");
+        // Agar error aaye to chupchap raho, user manually daal lega
+        console.log("Location access denied.");
     });
 }
 
@@ -182,6 +199,21 @@ async function getCoords(query) {
         return data.length ? { lat: data[0].lat, lon: data[0].lon } : null;
     } catch(e) { return null; }
 }
+// --- Helper: Get AQI Value for Calculation ---
+async function getRawAQI(lat, lon) {
+    if (!WAQI_TOKEN) return 50; // Agar token nahi hai to default Moderate man lo
+    try {
+        const res = await fetch(`https://api.waqi.info/feed/geo:${lat};${lon}/?token=${WAQI_TOKEN}`);
+        const data = await res.json();
+        if (data.status === 'ok') {
+            return data.data.aqi;
+        } else {
+            return 50; // Fallback default
+        }
+    } catch (e) {
+        return 50; // Error aane par default value
+    }
+}
 
 async function updateWeather(lat, lon) {
     try {
@@ -202,81 +234,220 @@ async function updateWeather(lat, lon) {
     } catch(e) {}
 }
 
+// Global variable to store current routes data
+let allAnalyzedRoutes = [];
+let routeLayers = []; // To manage map lines
+
+// --- Helper Function to Shift Coordinates (Demo ke liye) ---
+function getShiftedCoordinates(coords, latOffset, lonOffset) {
+    return coords.map((coord, index) => {
+        // Start (0) aur End (last) point ko mat hilana, taki destination sahi rahe
+        if (index === 0 || index === coords.length - 1) return coord;
+        
+        // Beech ke points ko thoda shift karo [Lon, Lat]
+        return [coord[0] + lonOffset, coord[1] + latOffset];
+    });
+}
+
 async function initiateRoute() {
     const country = document.getElementById('country-input').value;
     let srcTxt = document.getElementById('source-input').value;
     let dstTxt = document.getElementById('dest-input').value;
     const btn = document.querySelector('.btn-go');
 
-    if (srcTxt.trim() === "" || dstTxt.trim() === "" || srcTxt === "Your Location" || dstTxt === "Your Destination" || country.trim() === "") {
-        showCustomModal("Details Missing", "Please enter <b>Country</b>, <b>Location</b>, and <b>Destination</b>.");
+    if (srcTxt.trim() === "" || dstTxt.trim() === "" || country.trim() === "") {
+        showCustomModal("Details Missing", "Please enter Country, Start, and Destination.");
         return; 
     }
 
-    btn.innerText = "Routing...";
+    btn.innerText = "Generating Options...";
     
-    // Clear old data
+    // Cleanup
     vectorSource.clear();
     markersByCategory = {}; 
     document.querySelectorAll('.fab').forEach(b => b.classList.remove('active'));
+    routeLayers.forEach(l => map.removeLayer(l)); routeLayers = []; 
 
-    let start = await getCoords(`${srcTxt}, ${country}`);
+    // Get Coordinates
+    let start;
+    if (srcTxt === "My Current Location" && currentUserCoords) {
+        const lonLat = ol.proj.toLonLat(currentUserCoords);
+        start = { lat: lonLat[1], lon: lonLat[0] };
+    } else {
+        start = await getCoords(`${srcTxt}, ${country}`);
+    }
     let end = await getCoords(`${dstTxt}, ${country}`);
 
     if(!start || !end) { 
-        showCustomModal("Location Error", "Could not find location. Please check spelling.");
-        btn.innerText = "Start Journey 🚀"; 
-        return; 
+        showCustomModal("Location Error", "Locations not found."); btn.innerText = "Start Journey 🚀"; return; 
     }
 
     // UI Updates
     document.getElementById('landing-overlay').style.transform = "translateY(-120%)";
     document.getElementById('back-btn').style.display = "flex";
-    document.getElementById('nav-hud').style.display = "flex";
-    document.getElementById('turn-hud').style.display = "flex";
 
     addMarker(start.lat, start.lon, 'https://cdn-icons-png.flaticon.com/512/3253/3253110.png'); 
     addMarker(end.lat, end.lon, 'https://cdn-icons-png.flaticon.com/512/684/684908.png'); 
 
-    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${start.lon},${start.lat};${end.lon},${end.lat}?overview=full&geometries=geojson&steps=true`;
+    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${start.lon},${start.lat};${end.lon},${end.lat}?overview=full&geometries=geojson&steps=true&alternatives=true`;
 
     try {
         const res = await fetch(osrmUrl);
         const data = await res.json();
 
         if(data.routes && data.routes.length > 0) {
-            const route = data.routes[0];
-            
-            document.getElementById('dist-rem').innerText = (route.distance / 1000).toFixed(1) + " km";
-            document.getElementById('time-rem').innerText = Math.round(route.duration / 60) + " min";
-            
-            const routeFeature = new ol.format.GeoJSON().readFeature(route.geometry, {
-                dataProjection: 'EPSG:4326',
-                featureProjection: 'EPSG:3857'
-            });
-            routeFeature.set('type', 'route');
-            vectorSource.addFeature(routeFeature);
+            let rawRoutes = data.routes;
 
-            map.getView().fit(vectorSource.getExtent(), { padding: [100, 100, 100, 100], duration: 1000 });
-            updateWeather(start.lat, start.lon);
+            // --- 🛠️ DEMO MAGIC (UPDATED) ---
+            if (rawRoutes.length === 1) {
+                const original = rawRoutes[0];
+                
+                // --- Route B (Alternative 1) ---
+                const routeB = JSON.parse(JSON.stringify(original));
+                routeB.duration = original.duration * 1.15; 
+                routeB.distance = original.distance * 1.10;
+                // 👇 SHIFT LOGIC: Thoda North-East shift karo
+                routeB.geometry.coordinates = getShiftedCoordinates(original.geometry.coordinates, 0.005, 0.005);
 
-            if(route.legs[0].steps.length > 0) {
-                const step = route.legs[0].steps[0];
-                document.getElementById('turn-msg').innerText = step.maneuver.type + " " + (step.name || "ahead");
+                // --- Route C (Alternative 2) ---
+                const routeC = JSON.parse(JSON.stringify(original));
+                routeC.duration = original.duration * 0.95; 
+                routeC.distance = original.distance * 0.98;
+                // 👇 SHIFT LOGIC: Thoda South-West shift karo
+                routeC.geometry.coordinates = getShiftedCoordinates(original.geometry.coordinates, -0.005, -0.005);
+
+                rawRoutes = [original, routeB, routeC];
+                console.log("Demo Mode: Created visually distinct routes.");
             }
+            // -----------------------------
 
+            // Analyze Routes
+            const processedRoutes = await Promise.all(rawRoutes.map(async (route, index) => {
+                const midIndex = Math.floor(route.geometry.coordinates.length / 2);
+                const midCoords = route.geometry.coordinates[midIndex];
+                let aqi = await getRawAQI(midCoords[1], midCoords[0]);
+
+                // Demo AQI variation
+                if (index === 1) aqi = Math.max(30, aqi - 40); 
+                if (index === 2) aqi = aqi + 50; 
+
+                const pollutionScore = (route.distance / 1000) * aqi; 
+
+                return {
+                    id: index,
+                    routeObj: route,
+                    aqi: aqi,
+                    duration: route.duration, 
+                    distance: route.distance, 
+                    pScore: pollutionScore
+                };
+            }));
+
+            // Stats Calculation
+            const maxDuration = Math.max(...processedRoutes.map(r => r.duration));
+            const maxPollution = Math.max(...processedRoutes.map(r => r.pScore));
+
+            allAnalyzedRoutes = processedRoutes.map(r => {
+                let timeSaved = ((maxDuration - r.duration) / maxDuration) * 100;
+                let healthSaved = ((maxPollution - r.pScore) / maxPollution) * 100;
+                return { ...r, timeSaved: Math.max(0, timeSaved), healthSaved: Math.max(0, healthSaved) };
+            });
+
+            renderRouteSelectionUI(allAnalyzedRoutes);
+            selectRoute(0); // Select first by default
+            
+            updateWeather(start.lat, start.lon);
             if(!is3D) toggle3DMode();
-
-            // Ask for Location after 1 second
-            setTimeout(() => { askLocationPermission(); }, 1000);
         }
     } catch(e) {
-        showCustomModal("Routing Error", "Could not calculate route.");
         console.error(e);
+        showCustomModal("Error", "Routing failed.");
     }
     btn.innerText = "Start Journey 🚀";
 }
 
+// --- NEW FUNCTION: UI Banane ke liye ---
+function renderRouteSelectionUI(routes) {
+    const panel = document.getElementById('route-selection-panel');
+    const list = document.getElementById('routes-list');
+    list.innerHTML = ''; // Clear old
+
+    routes.forEach((r, index) => {
+        const timeMin = Math.round(r.duration / 60);
+        const distKm = (r.distance / 1000).toFixed(1);
+        
+        // Dynamic Badges
+        let badgesHtml = '';
+        if (r.healthSaved > 0) badgesHtml += `<span class="badge badge-health">💚 +${Math.round(r.healthSaved)}% Health</span>`;
+        if (r.timeSaved > 0) badgesHtml += `<span class="badge badge-time">⚡ +${Math.round(r.timeSaved)}% Time</span>`;
+        if (badgesHtml === '') badgesHtml = `<span class="badge badge-warn">⚠️ Standard Route</span>`;
+
+        const card = document.createElement('div');
+        card.className = `route-card`;
+        card.id = `route-card-${index}`;
+        card.onclick = () => selectRoute(index);
+        
+        card.innerHTML = `
+            <div class="route-header">
+                <span>Route ${String.fromCharCode(65 + index)}</span> <span>${timeMin} min</span>
+            </div>
+            <div class="route-stats">
+                <span>${distKm} km</span> | <span>AQI: ${r.aqi}</span>
+            </div>
+            <div class="badges">${badgesHtml}</div>
+        `;
+        list.appendChild(card);
+    });
+
+    panel.style.display = 'flex'; // Show panel
+}
+
+// --- NEW FUNCTION: Route Select karne par ---
+function selectRoute(index) {
+    const selectedData = allAnalyzedRoutes[index];
+    const route = selectedData.routeObj;
+
+    // 1. Map Layers Clear karo (Sirf purani route lines)
+    routeLayers.forEach(layer => map.removeLayer(layer));
+    routeLayers = [];
+
+    // 2. Draw ALL routes (Grey color for unselected)
+    allAnalyzedRoutes.forEach(r => {
+        const isSelected = (r.id === index);
+        const color = isSelected ? '#4285F4' : '#bdc3c7'; // Blue vs Grey
+        const width = isSelected ? 6 : 4;
+        const zIndex = isSelected ? 10 : 1; // Selected upar rahega
+
+        const routeFeature = new ol.format.GeoJSON().readFeature(r.routeObj.geometry, {
+            dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'
+        });
+
+        const vectorSourceRoute = new ol.source.Vector({ features: [routeFeature] });
+        const vectorLayerRoute = new ol.layer.Vector({
+            source: vectorSourceRoute,
+            style: new ol.style.Style({
+                stroke: new ol.style.Stroke({ width: width, color: color }),
+                zIndex: zIndex
+            })
+        });
+        
+        map.addLayer(vectorLayerRoute);
+        routeLayers.push(vectorLayerRoute); // Track layer to remove later
+    });
+
+    // 3. Highlight Card UI
+    document.querySelectorAll('.route-card').forEach(c => c.classList.remove('selected'));
+    document.getElementById(`route-card-${index}`).classList.add('selected');
+
+    // 4. Update HUD Stats
+    document.getElementById('dist-rem').innerText = (route.distance / 1000).toFixed(1) + " km";
+    document.getElementById('time-rem').innerText = Math.round(route.duration / 60) + " min";
+    document.getElementById('nav-hud').style.display = 'flex'; // Stats dikhao
+
+    // 5. Fit Map
+    const extent = routeLayers[index].getSource().getExtent(); // Fit to selected route
+    map.getView().fit(extent, { padding: [50, 50, 200, 50], duration: 1000 });
+}
 // --- 7. SEARCH & TOGGLE FUNCTIONS ---
 
 function toggleSatellite() {
@@ -426,6 +597,12 @@ function enterApp() {
     setTimeout(() => {
         welcomeScreen.classList.add('slide-up-exit');
         mainApp.classList.add('app-enter-active');
+        
+        // 👇 YAHAN CHANGE KIYA: Turant Location Pucho
+        setTimeout(() => {
+            askLocationPermission();
+        }, 500); 
+        
     }, 50);
 
     setTimeout(() => {
@@ -547,5 +724,10 @@ function changeBackground() {
     }
 }
 
-// Har 5 second mein change karo
 setInterval(changeBackground, 5000);
+
+// --- 19. TOGGLE ROUTE PANEL (Minimize/Maximize) ---
+function toggleRoutePanel() {
+    const panel = document.getElementById('route-selection-panel');
+    panel.classList.toggle('minimized');
+}

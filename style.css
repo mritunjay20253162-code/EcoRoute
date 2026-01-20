@@ -380,21 +380,150 @@ input, select {
     display: flex; align-items: center; justify-content: center;
 }
 
-/* Hover Effect */
 .compass-btn:hover {
     transform: translateX(-50%) scale(1.1);
     color: #3498db;
 }
 
-/* Active State (Jab Compass Mode ON ho) */
 .compass-btn.active {
     background: #3498db;
     color: white;
     box-shadow: 0 0 0 5px rgba(52, 152, 219, 0.3);
 }
 
-/* Icon Animation (Compass Mode mein Icon North point karega) */
 .compass-btn.active i {
-    /* Hum JS se icon ko rotate karenge taaki wo North dikhaye */
     transition: transform 0.2s linear;
+}
+
+/* --- 17. UPDATED ROUTE PANEL UI --- */
+.route-panel {
+    position: absolute; 
+    bottom: 20px; 
+    left: 50%; 
+    transform: translateX(-50%);
+    width: 95%; 
+    max-width: 380px; /* Thoda chhota kiya taaki mobile pe bhi fit ho */
+    background: white; 
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    z-index: 2500; 
+    display: none; 
+    flex-direction: column;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* Smooth Animation */
+    overflow: hidden; /* Minimize karte waqt content bahar na nikle */
+}
+
+/* Header Styling (Clickable for Minimize) */
+.panel-header {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    padding: 15px 20px;
+    background: #fff;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+}
+
+.panel-header h3 { 
+    margin: 0; 
+    color: #2c3e50; 
+    font-size: 16px; 
+    font-weight: 700;
+}
+
+/* Minimize Button Style */
+#minimize-btn {
+    background: transparent; 
+    border: none; 
+    font-size: 16px; 
+    color: #555;
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+
+/* Routes List Container */
+.routes-container {
+    padding: 10px;
+    display: flex; 
+    flex-direction: column; 
+    gap: 10px;
+    max-height: 35vh; /* Height limit lagayi taaki poora map cover na ho */
+    overflow-y: auto; /* Scrollbar agar content zyada ho */
+}
+
+/* --- MINIMIZED STATE (Jab panel chhota ho) --- */
+.route-panel.minimized {
+    height: 50px; /* Sirf Header dikhega */
+    overflow: hidden;
+    bottom: 20px;
+}
+
+.route-panel.minimized #minimize-btn {
+    transform: rotate(180deg); /* Icon ulta ho jayega (Up Arrow) */
+}
+
+.route-card {
+    background: #f8f9fa; border: 2px solid #eee;
+    padding: 12px; border-radius: 12px;
+    cursor: pointer; transition: 0.2s;
+    display: flex; flex-direction: column; gap: 5px;
+}
+.route-card:hover { background: #eef2f3; }
+
+.route-card.selected {
+    border-color: #2ecc71; background: #e8f5e9;
+    box-shadow: 0 4px 10px rgba(46,204,113,0.2);
+}
+
+.route-header { display: flex; justify-content: space-between; font-weight: bold; color: #333; }
+.route-stats { font-size: 13px; color: #666; display: flex; gap: 10px; }
+
+.badges { display: flex; gap: 8px; margin-top: 5px; }
+.badge {
+    font-size: 11px; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: white;
+}
+.badge-health { background: #27ae60; } 
+.badge-time { background: #3498db; }   
+.badge-warn { background: #e74c3c; }   
+
+#btnCompass {
+    position: relative !important; 
+    bottom: auto !important;
+    left: auto !important;
+    transform: none !important;
+
+    width: 45px !important;
+    height: 45px !important;
+    border-radius: 12px !important; 
+
+    margin: 5px 0;
+    background: white;
+    color: #555;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    display: flex; align-items: center; justify-content: center;
+}
+
+
+#btnCompass:hover {
+    transform: translateY(-2px) !important;
+    background: #f8f9fa;
+    color: #3498db; 
+}
+
+#btnCompass.active {
+    background: #3498db !important;
+    color: white !important;
+    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+}
+
+
+.nav-stats {
+    bottom: auto !important;
+    
+    top: 95px !important; 
+    z-index: 2000;
+}
+
+.turn-box {
+    top: 20px !important;
 }

@@ -40,6 +40,9 @@
     <button class="fab" id="btnSat" onclick="toggleSatellite()" title="Satellite View">
     <i class="fas fa-satellite"></i>
 </button>
+    <button id="btnCompass" class="compass-btn" onclick="toggleCompassMode()" title="Re-center & Orient">
+    <i class="fas fa-location-arrow"></i>
+</button>
     
     <div class="separator"></div> <button class="fab btn-food" onclick="searchNearby('restaurant')" title="Restaurants">
         <i class="fas fa-utensils"></i>
@@ -102,9 +105,16 @@
     <div id="map-container">
         <div id="map"></div>
     </div>
-    <button id="btnCompass" class="compass-btn" onclick="toggleCompassMode()" title="Re-center & Orient">
-    <i class="fas fa-location-arrow"></i>
-</button>
+<div id="route-selection-panel" class="route-panel">
+    <div class="panel-header" onclick="toggleRoutePanel()">
+        <h3>Choose Your Path 🛤️</h3>
+        <button id="minimize-btn"><i class="fas fa-chevron-down"></i></button>
+    </div>
+    
+    <div id="routes-list" class="routes-container">
+        </div>
+</div>
+
     </div><div id="error-modal" class="modal-overlay">
     <div class="modal-box">
         <div class="modal-icon">
