@@ -296,6 +296,14 @@ async function initiateRoute() {
         const data = await res.json();
 
         if(data.routes && data.routes.length > 0) {
+            localStorage.setItem('eco_trip_active', 'true');
+            localStorage.setItem('eco_start_lat', start.lat);
+            localStorage.setItem('eco_start_lon', start.lon);
+            localStorage.setItem('eco_end_lat', end.lat);
+            localStorage.setItem('eco_end_lon', end.lon);
+            localStorage.setItem('eco_src_txt', srcTxt);
+            localStorage.setItem('eco_dst_txt', dstTxt);
+            localStorage.setItem('eco_country', country);
             let rawRoutes = data.routes;
 
             // --- 🛠️ DEMO MAGIC (UPDATED) ---
@@ -565,6 +573,21 @@ function closeErrorModal() {
 }
 
 function openRatingModal() {
+    // 👇 1. YAHAN SABSE BADA CHANGE HAI: DATA DELETE KARO 👇
+    console.log("Ending Trip... Clearing Data.");
+    
+    localStorage.removeItem('eco_trip_active'); // Flag hatao
+    localStorage.removeItem('eco_start_lat');
+    localStorage.removeItem('eco_start_lon');
+    localStorage.removeItem('eco_end_lat');
+    localStorage.removeItem('eco_end_lon');
+    localStorage.removeItem('eco_src_txt');
+    localStorage.removeItem('eco_dst_txt');
+    localStorage.removeItem('eco_country');
+    
+    // 👆 DATA DELETE HO GAYA 👆
+
+    // 2. Ab Rating Modal dikhao
     document.getElementById('rating-modal').style.display = 'flex';
 }
 
@@ -588,6 +611,8 @@ function resetAppFull() {
     location.reload();
 }
 
+// --- 21. SESSION RESTORE (Mini Backend) ---
+
 function enterApp() {
     const welcomeScreen = document.getElementById('welcome-screen');
     const mainApp = document.getElementById('main-app');
@@ -598,16 +623,23 @@ function enterApp() {
         welcomeScreen.classList.add('slide-up-exit');
         mainApp.classList.add('app-enter-active');
         
-        // 👇 YAHAN CHANGE KIYA: Turant Location Pucho
-        setTimeout(() => {
-            askLocationPermission();
+        setTimeout(() => { 
+            askLocationPermission(); 
+            const isActive = localStorage.getItem('eco_trip_active');
+            
+            if (isActive === 'true') {
+                console.log("Restoring previous session...");
+
+                document.getElementById('country-input').value = localStorage.getItem('eco_country');
+                document.getElementById('source-input').value = localStorage.getItem('eco_src_txt');
+                document.getElementById('dest-input').value = localStorage.getItem('eco_dst_txt');
+                initiateRoute();
+            }
+
         }, 500); 
-        
     }, 50);
 
-    setTimeout(() => {
-        welcomeScreen.style.display = 'none';
-    }, 800); 
+    setTimeout(() => { welcomeScreen.style.display = 'none'; }, 800); 
 }
 
 function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
@@ -669,17 +701,38 @@ window.addEventListener('load', () => {
     const dataList = document.getElementById('country-list');
     if(dataList){
         dataList.innerHTML = '';
-        countryList.forEach(country => {
+        countryList.forEach(c => {
             const option = document.createElement('option');
-            option.value = country;
+            option.value = c;
             dataList.appendChild(option);
         });
     }
+
+    const isActive = localStorage.getItem('eco_trip_active');
+
+    if (isActive === 'true') {
+        console.log("Found active session. Bypassing welcome screen...");
+       
+        document.getElementById('welcome-screen').style.display = 'none';
+        document.getElementById('main-app').style.display = 'block';
+        document.getElementById('main-app').classList.add('app-enter-active');
+
+        document.getElementById('country-input').value = localStorage.getItem('eco_country');
+        document.getElementById('source-input').value = localStorage.getItem('eco_src_txt');
+        document.getElementById('dest-input').value = localStorage.getItem('eco_dst_txt');
+
+        map.updateSize();
+        
+        setTimeout(() => {
+            initiateRoute();
+            if(localStorage.getItem('eco_start_lat')) {
+                 askLocationPermission();
+            }
+        }, 500);
+
+    } 
 });
 
-// --- 14. DYNAMIC BACKGROUND SLIDESHOW (No Blink / Preloaded) ---
-
-// 1. Sirf Image Links (Bina 'url()' ke)
 const imageUrls = [
     "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=2560&auto=format&fit=crop",
@@ -695,38 +748,30 @@ const imageUrls = [
     "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=2070&auto=format&fit=crop"
 ];
 
-// 2. IMAGE PRELOADER (Ye Blink hone se rokega)
-// Ye loop chup-chaap saari photos download kar lega
 imageUrls.forEach((url) => {
     const img = new Image();
     img.src = url;
 });
 
-// 3. Random Start
 let bgIndex = Math.floor(Math.random() * imageUrls.length);
 
-// Page load par pehli image set karo
 const overlay = document.getElementById('landing-overlay');
 if(overlay) {
     overlay.style.backgroundImage = `url("${imageUrls[bgIndex]}")`;
 }
 
-// 4. Background Changer Function
 function changeBackground() {
     const overlay = document.getElementById('landing-overlay');
     
-    // Check karo ki overlay visible hai ya nahi
     if (overlay && overlay.style.display !== 'none' && !overlay.classList.contains('slide-up-exit')) {
-        bgIndex = (bgIndex + 1) % imageUrls.length; // Next Index
-        
-        // Image Update
+        bgIndex = (bgIndex + 1) % imageUrls.length;
+
         overlay.style.backgroundImage = `url("${imageUrls[bgIndex]}")`;
     }
 }
 
 setInterval(changeBackground, 5000);
 
-// --- 19. TOGGLE ROUTE PANEL (Minimize/Maximize) ---
 function toggleRoutePanel() {
     const panel = document.getElementById('route-selection-panel');
     panel.classList.toggle('minimized');

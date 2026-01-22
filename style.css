@@ -527,3 +527,46 @@ input, select {
 .turn-box {
     top: 20px !important;
 }
+
+/* --- 23. MNNIT BRANDING (Top Left Watermark) --- */
+
+.welcome-footer {
+    position: absolute;
+    top: 25px;   /* Screen ke upar */
+    left: 25px;  /* Screen ke left mein */
+    bottom: auto; /* Neeche se hata diya */
+    width: auto;  /* Full width nahi chahiye, bas content jitna */
+    
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* Text Left Align hoga */
+    gap: 8px;
+    
+    z-index: 100; /* Sabse upar dikhe */
+    pointer-events: none;
+}
+
+.footer-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    
+    /* Dark Glass Effect taaki kisi bhi wallpaper par dikhe */
+    background: rgba(0, 0, 0, 0.5); 
+    padding: 6px 15px;
+    border-radius: 25px;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.footer-icon {
+    font-size: 16px; /* Icon size */
+}
+
+.welcome-footer p {
+    margin: 0;
+    font-size: 13px;
+    color: #fff;
+    font-family: 'Segoe UI', sans-serif;
+    letter-spacing: 0.5px;
+}
